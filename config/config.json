@@ -1,0 +1,19 @@
+{
+  "api": {
+    "provider": "gemini",
+    "gemini_api_key": "",
+    "openai_api_key": "",
+    "anthropic_api_key": ""
+  },
+  "processamento": {
+    "modelo_gemini": "gemini-2.0-flash",
+    "temperatura": 1,
+    "max_tokens": 4000,
+    "timeout": 30
+  },
+  "interface": {
+    "tema": "claro",
+    "auto_refresh": true,
+    "logs_tempo_real": true
+  }
+}
