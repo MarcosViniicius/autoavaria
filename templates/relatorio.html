@@ -1,0 +1,337 @@
+{% extends "base.html" %} {% block title %}Relatório - Analisador de Avarias{%
+endblock %} {% block head %}
+<!-- Preload do JavaScript específico da página -->
+<link
+  rel="preload"
+  href="{{ url_for('static', filename='js/relatorio.min.js') }}"
+  as="script"
+/>
+{% endblock %} {% block content %}
+<div class="row">
+  <!-- Cabeçalho -->
+  <div class="col-12 mb-4">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <h1 class="h2 mb-1">
+          <i class="bi bi-file-earmark-excel text-success me-2"></i>Relatório de
+          Análise
+        </h1>
+        <p class="text-muted">Resultados detalhados da análise de produtos</p>
+      </div>
+      <div>
+        <a
+          href="{{ url_for('download_relatorio') }}"
+          class="btn btn-success me-2"
+        >
+          <i class="bi bi-download"></i> Download Excel
+        </a>
+        <button id="refreshBtn" class="btn btn-outline-primary">
+          <i class="bi bi-arrow-clockwise"></i> Atualizar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Resumo dos Dados -->
+  {% if dados %}
+  <div class="col-12 mb-4">
+    <div class="row">
+      {% for sheet_name, sheet_data in dados.items() %}
+      <div class="col-md-4 mb-3">
+        <div
+          class="card border-0 shadow-sm h-100 animate__animated animate__fadeInUp"
+          data-animation-delay="{{ loop.index0 * 0.1 }}"
+        >
+          <div class="card-body text-center">
+            <div class="display-4 mb-3">
+              {% if 'Avarias' in sheet_name %}
+              <i class="bi bi-exclamation-triangle text-danger"></i>
+              {% elif 'Uso Interno' in sheet_name %}
+              <i class="bi bi-building text-info"></i>
+              {% else %}
+              <i class="bi bi-x-circle text-warning"></i>
+              {% endif %}
+            </div>
+            <h3 class="mb-2">{{ sheet_data.total }}</h3>
+            <h6 class="text-muted">{{ sheet_name }}</h6>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Tabs de Dados -->
+  <div class="col-12">
+    <div class="card border-0 shadow-sm animate__animated animate__fadeInUp">
+      <div class="card-header bg-transparent">
+        <ul
+          class="nav nav-tabs card-header-tabs"
+          id="relatorioTab"
+          role="tablist"
+        >
+          {% for sheet_name, sheet_data in dados.items() %}
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link {% if loop.first %}active{% endif %}"
+              id="{{ sheet_name|replace(' ', '-')|lower }}-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#{{ sheet_name|replace(' ', '-')|lower }}"
+              type="button"
+              role="tab"
+            >
+              {% if 'Avarias' in sheet_name %}
+              <i class="bi bi-exclamation-triangle text-danger me-2"></i>
+              {% elif 'Uso Interno' in sheet_name %}
+              <i class="bi bi-building text-info me-2"></i>
+              {% else %}
+              <i class="bi bi-x-circle text-warning me-2"></i>
+              {% endif %} {{ sheet_name }} ({{ sheet_data.total }})
+            </button>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="card-body">
+        <div class="tab-content" id="relatorioTabContent">
+          {% for sheet_name, sheet_data in dados.items() %}
+          <div
+            class="tab-pane fade {% if loop.first %}show active{% endif %}"
+            id="{{ sheet_name|replace(' ', '-')|lower }}"
+            role="tabpanel"
+          >
+            <!-- Filtros e Busca -->
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <div class="input-group">
+                  <span class="input-group-text">
+                    <i class="bi bi-search"></i>
+                  </span>
+                  <input
+                    type="text"
+                    class="form-control search-input"
+                    placeholder="Buscar produtos..."
+                    data-table="{{ sheet_name|replace(' ', '-')|lower }}-table"
+                  />
+                </div>
+              </div>
+              <div class="col-md-6 text-end">
+                <div class="btn-group" role="group">
+                  <button
+                    type="button"
+                    class="btn btn-outline-secondary btn-sm export-btn"
+                    data-table="{{ sheet_name|replace(' ', '-')|lower }}-table"
+                  >
+                    <i class="bi bi-file-earmark-csv"></i> CSV
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-outline-secondary btn-sm print-btn"
+                    data-table="{{ sheet_name|replace(' ', '-')|lower }}-table"
+                  >
+                    <i class="bi bi-printer"></i> Imprimir
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tabela de Dados -->
+            <div class="table-responsive">
+              <table
+                class="table table-hover"
+                id="{{ sheet_name|replace(' ', '-')|lower }}-table"
+              >
+                <thead class="table-light">
+                  <tr>
+                    {% for coluna in sheet_data.colunas %}
+                    <th class="sortable" data-column="{{ loop.index0 }}">
+                      {{ coluna }}
+                      <i class="bi bi-chevron-expand ms-1 sort-icon"></i>
+                    </th>
+                    {% endfor %}
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for registro in sheet_data.dados %}
+                  <tr>
+                    {% for coluna in sheet_data.colunas %}
+                    <td>
+                      {% if 'Ver Imagem' in coluna %} {% if
+                      registro.get('Caminho da Imagem') and
+                      registro.get('Caminho da Imagem') != 'N/A' and
+                      registro.get('Caminho da Imagem') != '-' and
+                      registro.get('Caminho da Imagem')|string != 'nan' %} {%
+                      set image_path = registro.get('Caminho da Imagem',
+                      '')|string %} {% set image_filename =
+                      image_path.split('\\')[-1] if '\\' in image_path else
+                      (image_path.split('/')[-1] if '/' in image_path else
+                      image_path) %}
+                      <button
+                        class="btn btn-outline-primary btn-sm view-image-btn"
+                        data-image="{{ url_for('servir_imagem', filename=image_filename) }}"
+                        title="Ver imagem: {{ image_filename }}"
+                      >
+                        <i class="bi bi-eye"></i> Ver
+                      </button>
+                      {% else %}
+                      <span class="text-muted small">Sem imagem</span>
+                      {% endif %} {% elif 'Caminho da Imagem' in coluna %}
+                      <small
+                        class="text-muted text-truncate d-block"
+                        style="max-width: 200px"
+                      >
+                        {{ registro[coluna] if registro[coluna] else '-' }}
+                      </small>
+                      {% else %} {{ registro[coluna] if registro[coluna] is not
+                      none and registro[coluna] != '' else '-' }} {% endif %}
+                    </td>
+                    {% endfor %}
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Paginação -->
+            <nav aria-label="Navegação das páginas">
+              <ul
+                class="pagination pagination-sm justify-content-center"
+                id="{{ sheet_name|replace(' ', '-')|lower }}-pagination"
+              >
+                <!-- Paginação será gerada pelo JavaScript -->
+              </ul>
+            </nav>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <!-- Estado Vazio -->
+  <div class="col-12">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body text-center py-5">
+        <div class="display-1 text-muted mb-4">
+          <i class="bi bi-file-earmark-excel"></i>
+        </div>
+        <h4 class="text-muted mb-3">Nenhum Relatório Encontrado</h4>
+        <p class="text-muted mb-4">
+          Execute o processamento de imagens primeiro para gerar os dados do
+          relatório.
+        </p>
+        <a href="{{ url_for('index') }}" class="btn btn-primary">
+          <i class="bi bi-arrow-left me-2"></i>Voltar ao Dashboard
+        </a>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Modal de Visualização de Imagem -->
+<div
+  class="modal fade"
+  id="imageModal"
+  tabindex="-1"
+  aria-labelledby="imageModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="imageModalLabel">
+          <i class="bi bi-image me-2"></i>Visualizar Imagem
+        </h5>
+        <small class="text-muted ms-2" id="imageModalFilename"></small>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body text-center">
+        <div id="imageLoading" class="d-none">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Carregando...</span>
+          </div>
+          <p class="mt-2">Carregando imagem...</p>
+        </div>
+        <img
+          id="modalImage"
+          src=""
+          alt="Imagem do produto"
+          class="img-fluid rounded shadow"
+          style="max-height: 70vh"
+        />
+        <div id="imageLoadError" class="d-none">
+          <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            Não foi possível carregar a imagem.<br />
+            <small
+              >Verifique se o arquivo existe e se o servidor está
+              funcionando.</small
+            >
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          Fechar
+        </button>
+        <a id="downloadImageBtn" href="" download class="btn btn-primary">
+          <i class="bi bi-download me-2"></i>Download
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .sortable {
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .sortable:hover {
+    background-color: #f8f9fa;
+  }
+
+  .sort-icon {
+    font-size: 0.8rem;
+  }
+
+  .table th {
+    border-top: none;
+    font-weight: 600;
+  }
+
+  .text-truncate {
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #modalImage {
+    max-height: 500px;
+    object-fit: contain;
+  }
+
+  .animate__animated {
+    animation-duration: 0.6s;
+  }
+
+  .card[data-animation-delay] {
+    animation-delay: calc(var(--animation-delay) * 0.1s);
+  }
+</style>
+
+{% block scripts %}
+<!-- JavaScript otimizado específico para relatórios -->
+<script
+  src="{{ url_for('static', filename='js/relatorio.min.js') }}?v={{ range(1, 10000) | random }}"
+  defer
+></script>
+{% endblock %} {% endblock %}

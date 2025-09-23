@@ -1,0 +1,22 @@
+{
+  "version": 2,
+  "functions": {
+    "app.py": {
+      "runtime": "python3.9"
+    }
+  },
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/app.py"
+    }
+  ],
+  "env": {
+    "FLASK_ENV": "production"
+  },
+  "build": {
+    "env": {
+      "PYTHONPATH": "$PYTHONPATH:./"
+    }
+  }
+}
